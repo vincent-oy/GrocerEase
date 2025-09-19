@@ -51,7 +51,7 @@ public class InventoryWindow extends JFrame {
         btns.add(refreshBtn);
 
         add(btns, BorderLayout.NORTH);
-        add(new JScrollPane(table), BorderLayout.CENTER);   // scroll bar (the whole area, draw scroll bar according to how many)
+        add(new JScrollPane(table), BorderLayout.CENTER);   // scroll bar for the entire table area
 
         // First load
         reload();
