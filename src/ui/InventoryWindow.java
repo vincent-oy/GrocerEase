@@ -8,6 +8,7 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import model.InventoryItem;
 import service.InventoryService;
 
@@ -58,11 +59,16 @@ public class InventoryWindow extends JFrame {
     }
 
     private void reload() {
-        model.setRowCount(0);                        // clear
-        for (InventoryItem it : service.listAll()) { // fetch in-memory list
-            model.addRow(new Object[]{
-                    it.getId(), it.getName(), it.getQuantity(), it.getExpiry().toString()
-            });
+        try {
+            model.setRowCount(0);                        // clear
+            for (InventoryItem it : service.listAll()) { // fetch from service
+                model.addRow(new Object[]{
+                        it.getId(), it.getName(), it.getQuantity(),
+                        it.getExpiry() != null ? it.getExpiry().toString() : ""
+                });
+            }
+        } catch (RuntimeException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Inventory Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -80,10 +86,12 @@ public class InventoryWindow extends JFrame {
         try {
             int qty = Integer.parseInt(qtyStr.trim());
             LocalDate exp = LocalDate.parse(expStr.trim());
-            service.add(name.trim(), qty, exp);      // write to in-memory repo
+            service.add(name.trim(), qty, exp);      // persist via service
             reload();                                 // refresh view
-        } catch (Exception ex) {
+        } catch (NumberFormatException | DateTimeParseException ex) {
             JOptionPane.showMessageDialog(this, "Invalid input: " + ex.getMessage());
+        } catch (RuntimeException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Inventory Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -108,10 +116,12 @@ public class InventoryWindow extends JFrame {
         try {
             int qty = Integer.parseInt(qtyStr.trim());
             LocalDate exp = LocalDate.parse(expStr.trim());
-            service.update(id, name.trim(), qty, exp);  // update in memory
+            service.update(id, name.trim(), qty, exp);  // update via service
             reload();
-        } catch (Exception ex) {
+        } catch (NumberFormatException | DateTimeParseException ex) {
             JOptionPane.showMessageDialog(this, "Invalid input: " + ex.getMessage());
+        } catch (RuntimeException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Inventory Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -121,8 +131,12 @@ public class InventoryWindow extends JFrame {
         int id = (int) model.getValueAt(row, 0);
         int confirm = JOptionPane.showConfirmDialog(this, "Delete this item?");
         if (confirm == JOptionPane.YES_OPTION) {
-            service.delete(id);
-            reload();
+            try {
+                service.delete(id);
+                reload();
+            } catch (RuntimeException ex) {
+                JOptionPane.showMessageDialog(this, ex.getMessage(), "Inventory Error", JOptionPane.ERROR_MESSAGE);
+            }
         }
     }
 }
