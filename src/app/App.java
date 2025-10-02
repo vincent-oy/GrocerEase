@@ -1,36 +1,38 @@
 package app;
 
-// Swing imports for GUI
+// swing = java's gui stuff
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
-// Our own main window class
+// my window (main menu)
 import ui.MainWindow;
 
-/**
- * Entry point of the GrocerEase program.
- * Sets a nice theme and opens the main menu window.
+/*
+ * entry point. i just start the GUI here.
+ * kept this simple on purpose.
  */
 public class App {
 
     public static void main(String[] args) {
 
-        // A quick console log to know the app started.
-        System.out.println("GrocerEase application starting...");
+        // just so i can see it actually launched
+        System.out.println("== GrocerEase starting ==");
 
-        // Try the "Nimbus" Look & Feel (nicer default).
+        // try nicer theme. if it fails, whatever.
         try {
             UIManager.setLookAndFeel("javax.swing.plaf.nimbus.NimbusLookAndFeel");
-        } catch (Exception ignored) {
-            System.out.println("Nimbus not available, using default Look & Feel.");
+        } catch (Exception e) {
+            System.out.println("nimbus failed -> using default");
         }
 
-        // All Swing UI must be created on the Event Dispatch Thread (EDT).
+        // swing rule: make windows on the event dispatch thread
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
-                MainWindow main = new MainWindow();
-                main.setVisible(true);
+                // open the main menu
+                MainWindow w = new MainWindow();
+                w.setVisible(true);
+                System.out.println("main window visible"); // debug
             }
         });
     }

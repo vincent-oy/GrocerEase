@@ -1,37 +1,32 @@
 package app;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.SQLException;
 
-/**
- * Db is a tiny helper class to:
- *  1) choose where the SQLite file lives
- *  2) open a JDBC connection to that file
- *
- * VM option (optional):
- *   -Dgrocerease.db="C:\\Users\\ruby_\\OneDrive\\Desktop\\GrocerEase.db"
- * If not provided, we use "inventory.db" in the project folder.
+/*
+ * this class just opens the database connection.
+ * in IB words: this is the "data layer".
+ * student-style = keep it really short and direct.
  */
-public final class Db {
+public class Db {
 
-    private Db() { }
+    // location of the sqlite file (can be changed with VM option)
+    private static final String DEFAULT_PATH = "GrocerEase.db";
 
-    /** Decide the DB file location. */
-    public static Path resolveDbPath() {
-        String custom = System.getProperty("grocerease.db");
-        if (custom != null && !custom.isBlank()) {
-            return Paths.get(custom);
+    // open a connection
+    public static Connection open() {
+        try {
+            // check if user supplied a custom path
+            String path = System.getProperty("dbPath", DEFAULT_PATH);
+
+            // debug print so i know where it’s connecting
+            System.out.println("[DB] opening sqlite at: " + path);
+
+            // connect
+            return DriverManager.getConnection("jdbc:sqlite:" + path);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("could not open DB: " + e.getMessage());
         }
-        return Paths.get(System.getProperty("user.dir"), "inventory.db");
-    }
-
-    /** Open a new connection. Caller closes it in a try-with-resources block. */
-    public static Connection open() throws SQLException {
-        Path dbPath = resolveDbPath();
-        String url = "jdbc:sqlite:" + dbPath.toAbsolutePath();
-        return DriverManager.getConnection(url);
     }
 }

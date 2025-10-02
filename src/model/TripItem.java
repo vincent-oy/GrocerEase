@@ -1,20 +1,20 @@
 package model;
 
-/**
- * One line in a shopping trip (what we plan to buy).
+/*
+ * trip item data (student style)
+ * belongs to a trip (tripId)
  */
 public class TripItem {
+    public Integer id;
+    public int     tripId;
+    public String  itemName;
+    public String  unit;
+    public int     plannedQty;
+    public Integer expectedPriceCents; // can be null if unknown
+    public int     lineTotalCents;
 
-    public Integer id;               // primary key
-    public int tripId;               // which trip this belongs to
-
-    public String itemName;          // e.g., "Milk 1L"
-    public String unit;              // e.g., "bottle"
-
-    public int plannedQty;           // how many we plan to buy
-
-    public Integer expectedPriceCents;   // nullable if we don't know yet
-    public int lineTotalCents;           // plannedQty * expectedPriceCents (0 if price unknown)
-
-    public TripItem() { }            //???
+    @Override
+    public String toString() {
+        return "TripItem{id=" + id + ", item=" + itemName + ", qty=" + plannedQty + "}";
+    }
 }

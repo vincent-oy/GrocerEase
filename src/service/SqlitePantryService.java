@@ -4,111 +4,136 @@ import app.DBMigrator;
 import app.Db;
 import model.PantryItem;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.Statement;
+import java.sql.*;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * SQLite-backed PantryService.
- * Each method opens a connection, does its job, and closes it (simple & safe for a small app).
+/*
+ * pantry sqlite "service" (student style):
+ * - constructor runs DBMigrator once
+ * - methods are simple and a bit repetitive on purpose (typical coursework style)
+ * - expiry kept as TEXT; updated_at is Instant ISO string
  */
-public class SqlitePantryService implements PantryService {
+public class SqlitePantryService {
 
     public SqlitePantryService() {
-        DBMigrator.migrate();   // ensure tables exist
+        // make sure tables exist
+        DBMigrator.migrate();
     }
 
-    // Convert a ResultSet row to a PantryItem object.
-    private PantryItem map(ResultSet rs) throws Exception {
-        PantryItem p = new PantryItem();
-        p.id        = rs.getInt("id");
-        p.name      = rs.getString("name");
-        p.category  = rs.getString("category");
-        p.onHandQty = rs.getInt("on_hand_qty");
-        p.unit      = rs.getString("unit");
-
-        String exp = rs.getString("expiry");
-        p.expiry = (exp == null) ? null : LocalDate.parse(exp);
-
-        p.minQty    = rs.getInt("min_qty");
-        p.updatedAt = Instant.parse(rs.getString("updated_at"));
-        return p;
-    }
-
-    @Override
+    // list everything ordered by name
     public List<PantryItem> listAll() {
         String sql = "SELECT * FROM pantry_items ORDER BY name";
+        List<PantryItem> out = new ArrayList<>();
+
         try (Connection c = Db.open();
              PreparedStatement ps = c.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
 
-            List<PantryItem> out = new ArrayList<>();
-            while (rs.next()) out.add(map(rs));
-            return out;
+            while (rs.next()) {
+                PantryItem p = new PantryItem();
+                p.id        = rs.getInt("id");
+                p.name      = rs.getString("name");
+                p.category  = rs.getString("category");
+                p.onHandQty = rs.getInt("on_hand_qty");
+                p.unit      = rs.getString("unit");
+                p.expiry    = rs.getString("expiry"); // may be null
+                p.minQty    = rs.getInt("min_qty");
+                p.updatedAt = rs.getString("updated_at"); // ISO text
+                out.add(p);
+            }
 
         } catch (Exception e) {
-            throw new RuntimeException("listAll failed: " + e.getMessage(), e);
+            e.printStackTrace();
+            throw new RuntimeException("pantry list failed");
         }
+        return out;
     }
 
-    @Override
+    // items where on_hand <= min
     public List<PantryItem> lowStock() {
         String sql = "SELECT * FROM pantry_items WHERE on_hand_qty <= min_qty ORDER BY name";
+        List<PantryItem> out = new ArrayList<>();
+
         try (Connection c = Db.open();
              PreparedStatement ps = c.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
 
-            List<PantryItem> out = new ArrayList<>();
-            while (rs.next()) out.add(map(rs));
-            return out;
+            while (rs.next()) {
+                PantryItem p = new PantryItem();
+                p.id        = rs.getInt("id");
+                p.name      = rs.getString("name");
+                p.category  = rs.getString("category");
+                p.onHandQty = rs.getInt("on_hand_qty");
+                p.unit      = rs.getString("unit");
+                p.expiry    = rs.getString("expiry");
+                p.minQty    = rs.getInt("min_qty");
+                p.updatedAt = rs.getString("updated_at");
+                out.add(p);
+            }
 
         } catch (Exception e) {
-            throw new RuntimeException("lowStock failed: " + e.getMessage(), e);
+            e.printStackTrace();
+            throw new RuntimeException("low stock query failed");
         }
+        return out;
     }
 
-    @Override
+    // expiry <= today+days (string compare ok for YYYY-MM-DD)
     public List<PantryItem> expiringSoon(int days) {
+        // very simple way: compute yyyy-mm-dd string in java, compare as text
+        java.time.LocalDate limit = java.time.LocalDate.now().plusDays(days);
+        String limitStr = limit.toString();
+
         String sql = "SELECT * FROM pantry_items WHERE expiry IS NOT NULL AND expiry <= ? ORDER BY expiry ASC";
-        LocalDate limit = LocalDate.now().plusDays(days);
+        List<PantryItem> out = new ArrayList<>();
 
         try (Connection c = Db.open();
              PreparedStatement ps = c.prepareStatement(sql)) {
 
-            ps.setString(1, limit.toString());
-
+            ps.setString(1, limitStr);
             try (ResultSet rs = ps.executeQuery()) {
-                List<PantryItem> out = new ArrayList<>();
-                while (rs.next()) out.add(map(rs));
-                return out;
+                while (rs.next()) {
+                    PantryItem p = new PantryItem();
+                    p.id        = rs.getInt("id");
+                    p.name      = rs.getString("name");
+                    p.category  = rs.getString("category");
+                    p.onHandQty = rs.getInt("on_hand_qty");
+                    p.unit      = rs.getString("unit");
+                    p.expiry    = rs.getString("expiry");
+                    p.minQty    = rs.getInt("min_qty");
+                    p.updatedAt = rs.getString("updated_at");
+                    out.add(p);
+                }
             }
 
         } catch (Exception e) {
-            throw new RuntimeException("expiringSoon failed: " + e.getMessage(), e);
+            e.printStackTrace();
+            throw new RuntimeException("expiring soon query failed");
         }
+        return out;
     }
 
-    @Override
+    // add a new item (basic validation)
     public PantryItem add(PantryItem p) {
-        validate(p);
+        if (p == null)                   throw new IllegalArgumentException("null item");
+        if (p.name == null || p.name.isBlank()) throw new IllegalArgumentException("name required");
+        if (p.onHandQty < 0)             throw new IllegalArgumentException("qty cannot be negative");
+        if (p.minQty < 0)                throw new IllegalArgumentException("min cannot be negative");
 
-        String sql = "INSERT INTO pantry_items(name, category, on_hand_qty, unit, expiry, min_qty, updated_at) "
-                   + "VALUES (?,?,?,?,?,?,?)";
+        String sql = "INSERT INTO pantry_items(name, category, on_hand_qty, unit, expiry, min_qty, updated_at) " +
+                     "VALUES (?,?,?,?,?,?,?)";
 
         try (Connection c = Db.open();
              PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             ps.setString(1, p.name.trim());
-            ps.setString(2, p.category);
-            ps.setInt(3, Math.max(0, p.onHandQty));
-            ps.setString(4, p.unit);
-            ps.setString(5, p.expiry == null ? null : p.expiry.toString());
-            ps.setInt(6, Math.max(0, p.minQty));
+            ps.setString(2, emptyToNull(p.category));
+            ps.setInt(3, p.onHandQty);
+            ps.setString(4, emptyToNull(p.unit));
+            if (p.expiry == null || p.expiry.isBlank()) ps.setNull(5, Types.VARCHAR); else ps.setString(5, p.expiry);
+            ps.setInt(6, p.minQty);
             ps.setString(7, Instant.now().toString());
 
             ps.executeUpdate();
@@ -119,61 +144,61 @@ public class SqlitePantryService implements PantryService {
             return p;
 
         } catch (Exception e) {
-            throw new RuntimeException("add failed: " + e.getMessage(), e);
+            e.printStackTrace();
+            throw new RuntimeException("add failed");
         }
     }
 
-    @Override
+    // update by id
     public PantryItem update(PantryItem p) {
-        if (p.id == null || p.id <= 0) throw new IllegalArgumentException("Invalid id");
-        validate(p);
+        if (p == null || p.id == null || p.id <= 0) throw new IllegalArgumentException("bad id");
+        if (p.name == null || p.name.isBlank())     throw new IllegalArgumentException("name required");
 
-        String sql = "UPDATE pantry_items "
-                   + "SET name=?, category=?, on_hand_qty=?, unit=?, expiry=?, min_qty=?, updated_at=? "
-                   + "WHERE id=?";
+        String sql = "UPDATE pantry_items SET name=?, category=?, on_hand_qty=?, unit=?, expiry=?, min_qty=?, updated_at=? " +
+                     "WHERE id=?";
 
         try (Connection c = Db.open();
              PreparedStatement ps = c.prepareStatement(sql)) {
 
             ps.setString(1, p.name.trim());
-            ps.setString(2, p.category);
+            ps.setString(2, emptyToNull(p.category));
             ps.setInt(3, Math.max(0, p.onHandQty));
-            ps.setString(4, p.unit);
-            ps.setString(5, p.expiry == null ? null : p.expiry.toString());
+            ps.setString(4, emptyToNull(p.unit));
+            if (p.expiry == null || p.expiry.isBlank()) ps.setNull(5, Types.VARCHAR); else ps.setString(5, p.expiry);
             ps.setInt(6, Math.max(0, p.minQty));
             ps.setString(7, Instant.now().toString());
             ps.setInt(8, p.id);
 
             int n = ps.executeUpdate();
-            if (n == 0) throw new IllegalArgumentException("No pantry item with id " + p.id);
+            if (n == 0) throw new IllegalArgumentException("no row with id " + p.id);
             return p;
 
         } catch (Exception e) {
-            throw new RuntimeException("update failed: " + e.getMessage(), e);
+            e.printStackTrace();
+            throw new RuntimeException("update failed");
         }
     }
 
-    @Override
+    // delete by id
     public boolean delete(int id) {
         String sql = "DELETE FROM pantry_items WHERE id=?";
         try (Connection c = Db.open();
              PreparedStatement ps = c.prepareStatement(sql)) {
 
             ps.setInt(1, id);
-            return ps.executeUpdate() > 0;
+            int n = ps.executeUpdate();
+            return n > 0;
 
         } catch (Exception e) {
-            throw new RuntimeException("delete failed: " + e.getMessage(), e);
+            e.printStackTrace();
+            throw new RuntimeException("delete failed");
         }
     }
 
-    // Basic checks to keep the data clean.
-    private void validate(PantryItem p) {
-        if (p == null)                              throw new IllegalArgumentException("Item is null");
-        if (p.name == null || p.name.isBlank())     throw new IllegalArgumentException("Name is required");
-        if (p.onHandQty < 0)                        throw new IllegalArgumentException("Quantity cannot be negative");
-        if (p.minQty < 0)                           throw new IllegalArgumentException("Min quantity cannot be negative");
+    // small helper: turn "" into null so db stays cleaner
+    private String emptyToNull(String s) {
+        if (s == null) return null;
+        String t = s.trim();
+        return t.isEmpty() ? null : t;
     }
-
-    @Override public void close() { }
 }

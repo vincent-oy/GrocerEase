@@ -1,255 +1,247 @@
 package ui;
 
+import service.SqliteTripService;
+import util.Money;
 import model.Trip;
 import model.TripItem;
-import service.TripService;
-import util.Money;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.time.LocalDate;
 import java.util.List;
 
-/**
- * Trip planner window:
- *  - Create a trip with Date + Budget (+ optional note)
- *  - Add items with qty + expected price
- *  - See live Subtotal and Remaining vs Budget
- *
- * Layout notes (IMPORTANT for BorderLayout):
- *  - We combine header + toolbar into ONE "topPanel" and add it to NORTH.
- *  - The table (inside a JScrollPane) goes to CENTER so it can expand.
- *  - The footer (totals) goes to SOUTH (PAGE_END).
+/*
+ * plan a trip window (student style)
+ * - create a trip (date + budget + note)
+ * - add items (qty + expected price)
+ * - live subtotal + remaining vs budget
+ * notes: i keep most logic inline and use direct SqliteTripService (no interface)
  */
 public class TripWindow extends JFrame {
 
-    // --- Service and state ---
-    private final TripService service;
-    private Trip currentTrip = null;  // stays null until user clicks "Create Trip"
+    // direct service (student simple)
+    private final SqliteTripService service = new SqliteTripService();
 
-    // --- Header inputs ---
-    private final JTextField dateField   = new JTextField(10);
-    private final JTextField budgetField = new JTextField(8);
-    private final JTextField noteField   = new JTextField(16);
+    // current trip (null until user creates one)
+    private Trip currentTrip = null;
 
-    // --- Table model & table ---
+    // top inputs
+    private final JTextField dateField   = new JTextField(10); // keep as text like "2025-10-03"
+    private final JTextField budgetField = new JTextField(8);  // accepts "1200" or "1200.50"
+    private final JTextField noteField   = new JTextField(16); // optional
+
+    // table (items)
     private final DefaultTableModel model = new DefaultTableModel(
-        new Object[] { "ID", "Item", "Unit", "Qty", "Expected", "Line Total" }, 0
+            new Object[] { "ID", "Item", "Unit", "Qty", "Expected", "Line Total" }, 0
     ) {
         @Override public boolean isCellEditable(int r, int c) { return false; }
-        @Override public Class<?> getColumnClass(int c) { return (c==0||c==3) ? Integer.class : String.class; }
+        @Override public Class<?> getColumnClass(int c) { return (c==0 || c==3) ? Integer.class : String.class; }
     };
-
     private final JTable table = new JTable(model);
 
-    // --- Footer labels ---
+    // footer labels
     private final JLabel subtotalLabel  = new JLabel("Subtotal: NT$0.00");
     private final JLabel remainingLabel = new JLabel("Remaining: NT$0.00");
 
-    public TripWindow(TripService svc) {
-        this.service = svc;
-
-        setTitle("Plan a Shopping Trip");
+    public TripWindow() {
+        setTitle("Plan a Trip");
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setSize(960, 580);
         setLocationRelativeTo(null);
 
-        // Table selection (one row at a time = simpler)
+        // selection: single row (easier)
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
-        // =========================
-        // build HEADER (top row)
-        // =========================
-        JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        dateField.setText(LocalDate.now().toString());       // default today
+        // ===== header row =====
+        JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 6));
+        dateField.setText(java.time.LocalDate.now().toString()); // default today
         header.add(new JLabel("Date:"));          header.add(dateField);
         header.add(new JLabel("Budget (NT$):"));  header.add(budgetField);
         header.add(new JLabel("Note:"));          header.add(noteField);
-        JButton createBtn = new JButton("Create Trip");
-        header.add(createBtn);
+        JButton btnCreate = new JButton("Create Trip");
+        header.add(btnCreate);
 
-        // =========================
-        // build TOOLBAR (second row)
-        // =========================
-        JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JButton addBtn = new JButton("Add Item");
-        JButton qtyBtn = new JButton("Change Qty");
-        JButton rmBtn  = new JButton("Remove Item");
-        JButton refBtn = new JButton("Refresh");
-        toolbar.add(addBtn);
-        toolbar.add(qtyBtn);
-        toolbar.add(rmBtn);
-        toolbar.add(refBtn);
+        // ===== toolbar row =====
+        JPanel bar = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 6));
+        JButton btnAdd = new JButton("Add Item");
+        JButton btnQty = new JButton("Change Qty");
+        JButton btnDel = new JButton("Remove Item");
+        JButton btnRef = new JButton("Refresh");
+        bar.add(btnAdd); bar.add(btnQty); bar.add(btnDel); bar.add(btnRef);
 
-        // =========================
-        // stack HEADER + TOOLBAR at NORTH
-        // (BorderLayout only allows one per region, so we combine)
-        // =========================
-        JPanel topPanel = new JPanel(new BorderLayout());
-        topPanel.add(header, BorderLayout.NORTH);
-        topPanel.add(toolbar, BorderLayout.CENTER);
-        add(topPanel, BorderLayout.NORTH);
+        // stack header + bar at NORTH (borderlayout only allows one per region, so combine in a panel)
+        JPanel north = new JPanel(new BorderLayout());
+        north.add(header, BorderLayout.NORTH);
+        north.add(bar, BorderLayout.CENTER);
+        add(north, BorderLayout.NORTH);
 
-        // =========================
-        // TABLE in CENTER (so it grows)
-        // =========================
+        // table in center (so it expands)
         add(new JScrollPane(table), BorderLayout.CENTER);
 
-        // =========================
-        // FOOTER (totals) in SOUTH
-        // =========================
+        // footer
         JPanel footer = new JPanel(new FlowLayout(FlowLayout.LEFT, 16, 6));
         footer.add(subtotalLabel);
         footer.add(remainingLabel);
-        add(footer, BorderLayout.SOUTH);  // PAGE_END == SOUTH; use one of them, not both
+        add(footer, BorderLayout.SOUTH);
 
-        // =========================
-        // Wire actions
-        // =========================
-        createBtn.addActionListener(e -> onCreateTrip());
-        addBtn.addActionListener(e -> onAddItem());
-        qtyBtn.addActionListener(e -> onChangeQty());
-        rmBtn.addActionListener(e -> onRemove());
-        refBtn.addActionListener(e -> { refreshTable(); updateTotals(); });
+        // wire actions
+        btnCreate.addActionListener(e -> createTrip());
+        btnAdd.addActionListener(e -> addItem());
+        btnQty.addActionListener(e -> changeQty());
+        btnDel.addActionListener(e -> removeItem());
+        btnRef.addActionListener(e -> { refreshTable(); updateTotals(); });
     }
 
-    // === Create Trip: parse inputs → create → refresh ===
-    private void onCreateTrip() {
+    // create a new trip from inputs
+    private void createTrip() {
         try {
-            LocalDate date = LocalDate.parse(dateField.getText().trim()); // YYYY-MM-DD
-            int budgetCents = Money.parseCents(budgetField.getText().trim());
-            String note = noteField.getText().trim();
+            String dateText = dateField.getText().trim();      // keep as text
+            int budgetCents = Money.parseCents(budgetField.getText().trim()); // handles 1000 or 1000.50
+            String note     = noteField.getText().trim();
 
-            currentTrip = service.create(date, null, budgetCents, note);
-            JOptionPane.showMessageDialog(this, "Trip created. Now add items.");
+            if (dateText.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "enter a date like YYYY-MM-DD");
+                return;
+            }
+            if (budgetCents < 0) {
+                JOptionPane.showMessageDialog(this, "budget must be >= 0");
+                return;
+            }
 
+            currentTrip = service.create(dateText, null, budgetCents, note);
+            JOptionPane.showMessageDialog(this, "trip created. now add items.");
+
+            // refresh screen
             refreshTable();
             updateTotals();
 
+            System.out.println("[Trip] created id=" + currentTrip.id + " date=" + currentTrip.tripDateText +
+                    " budgetCents=" + currentTrip.budgetCents);
+
         } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Check Date (YYYY-MM-DD) and Budget (number).");
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "check date and budget format");
         }
     }
 
-    // === Add Item: popup inputs → service.addItem → refresh ===
-    private void onAddItem() {
+    // add an item to current trip
+    private void addItem() {
         if (currentTrip == null) {
-            JOptionPane.showMessageDialog(this, "Create a trip first (set Date + Budget, then click 'Create Trip').");
+            JOptionPane.showMessageDialog(this, "create a trip first");
             return;
         }
 
-        // Build a simple input panel
-        JTextField nameField  = new JTextField(14);
-        JTextField unitField  = new JTextField(8);
-        JTextField qtyField   = new JTextField(6);
-        JTextField priceField = new JTextField(8); // optional
+        JTextField name = new JTextField(14);
+        JTextField unit = new JTextField(8);
+        JTextField qty  = new JTextField(6);
+        JTextField px   = new JTextField(8); // optional price (NT$)
 
         JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 6));
-        p.add(new JLabel("Item:"));                 p.add(nameField);
-        p.add(new JLabel("Unit:"));                 p.add(unitField);
-        p.add(new JLabel("Qty:"));                  p.add(qtyField);
-        p.add(new JLabel("Expected price (NT$):")); p.add(priceField);
+        p.add(new JLabel("Item:"));                 p.add(name);
+        p.add(new JLabel("Unit:"));                 p.add(unit);
+        p.add(new JLabel("Qty:"));                  p.add(qty);
+        p.add(new JLabel("Expected price (NT$):")); p.add(px);
 
-        int ok = JOptionPane.showConfirmDialog(this, p, "Add Trip Item", JOptionPane.OK_CANCEL_OPTION);
+        int ok = JOptionPane.showConfirmDialog(this, p, "Add Item", JOptionPane.OK_CANCEL_OPTION);
         if (ok != JOptionPane.OK_OPTION) return;
 
         try {
-            String name = nameField.getText().trim();
-            String unit = unitField.getText().trim();
-            if (name.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Item name is required.");
+            String itemName = name.getText().trim();
+            String unitTxt  = unit.getText().trim();
+            if (itemName.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "item name required");
+                return;
+            }
+            int q = Integer.parseInt(qty.getText().trim());
+            if (q <= 0) {
+                JOptionPane.showMessageDialog(this, "qty must be > 0");
                 return;
             }
 
-            int qty = Integer.parseInt(qtyField.getText().trim());
-            if (qty <= 0) {
-                JOptionPane.showMessageDialog(this, "Quantity must be a positive whole number.");
-                return;
-            }
+            String pxText = px.getText().trim();
+            Integer priceCents = pxText.isEmpty() ? null : Money.parseCents(pxText);
 
-            String px = priceField.getText().trim();
-            Integer priceCents = px.isEmpty() ? null : Money.parseCents(px);
+            service.addItem(currentTrip.id, itemName, unitTxt, q, priceCents);
 
-            service.addItem(currentTrip.id, name, unit, qty, priceCents);
-
-            // Always refresh after changes
             refreshTable();
             updateTotals();
 
-            System.out.println("[TripWindow] Added item '" + name + "' qty=" + qty +
-                    " priceCents=" + (priceCents == null ? "null" : priceCents) +
-                    " for tripId=" + currentTrip.id);
+            System.out.println("[Trip] added item '" + itemName + "' q=" + q +
+                    " priceCents=" + (priceCents==null? "null" : priceCents) +
+                    " tripId=" + currentTrip.id);
 
         } catch (NumberFormatException nfe) {
-            JOptionPane.showMessageDialog(this, "Qty must be an integer (e.g., 1, 2, 3).");
+            JOptionPane.showMessageDialog(this, "qty must be a whole number");
         } catch (RuntimeException ex) {
-            JOptionPane.showMessageDialog(this, ex.getMessage(), "Trip Error", JOptionPane.ERROR_MESSAGE);
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "add failed: " + ex.getMessage());
         }
     }
 
-    // === Change quantity for selected row ===
-    private void onChangeQty() {
-        Integer id = selectedItemId();
-        if (id == null) { JOptionPane.showMessageDialog(this, "Select a row."); return; }
+    // change qty of selected row
+    private void changeQty() {
+        if (currentTrip == null) { JOptionPane.showMessageDialog(this, "create a trip first"); return; }
 
-        String s = JOptionPane.showInputDialog(this, "New quantity:", "1");
+        int r = table.getSelectedRow();
+        if (r < 0) { JOptionPane.showMessageDialog(this, "select a row"); return; }
+
+        Integer id = (Integer) model.getValueAt(r, 0);
+        String s = JOptionPane.showInputDialog(this, "new qty:", "1");
         if (s == null) return;
 
         try {
             int q = Integer.parseInt(s.trim());
-            if (q <= 0) { JOptionPane.showMessageDialog(this, "Quantity must be a positive whole number."); return; }
+            if (q <= 0) { JOptionPane.showMessageDialog(this, "qty must be > 0"); return; }
 
             service.updateItemQty(id, q);
             refreshTable();
             updateTotals();
 
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Quantity must be a positive whole number.");
+            System.out.println("[Trip] changed qty id=" + id + " -> " + q);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "invalid qty");
         }
     }
 
-    // === Remove currently selected row ===
-    private void onRemove() {
-        Integer id = selectedItemId();
-        if (id == null) { JOptionPane.showMessageDialog(this, "Select a row."); return; }
+    // remove selected row
+    private void removeItem() {
+        if (currentTrip == null) { JOptionPane.showMessageDialog(this, "create a trip first"); return; }
 
-        if (JOptionPane.showConfirmDialog(this, "Remove this item?") == JOptionPane.YES_OPTION) {
-            service.removeItem(id);
-            refreshTable();
-            updateTotals();
-        }
-    }
-
-    // === Helper: get selected row ID (null if none) ===
-    private Integer selectedItemId() {
         int r = table.getSelectedRow();
-        return r < 0 ? null : (Integer) model.getValueAt(r, 0);
+        if (r < 0) { JOptionPane.showMessageDialog(this, "select a row"); return; }
+        Integer id = (Integer) model.getValueAt(r, 0);
+
+        if (JOptionPane.showConfirmDialog(this, "remove this item?") == JOptionPane.YES_OPTION) {
+            try {
+                service.removeItem(id);
+                refreshTable();
+                updateTotals();
+                System.out.println("[Trip] removed id=" + id);
+            } catch (RuntimeException ex) {
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(this, "remove failed: " + ex.getMessage());
+            }
+        }
     }
 
-    // === Reload table from DB for current trip ===
+    // reload table rows from db
     private void refreshTable() {
         model.setRowCount(0);
         if (currentTrip == null) return;
 
         List<TripItem> items = service.listItems(currentTrip.id);
         for (TripItem t : items) {
-            String expected = (t.expectedPriceCents == null) ? "—" : Money.formatNTD(t.expectedPriceCents);
+            String exp = (t.expectedPriceCents == null) ? "-" : Money.formatNTD(t.expectedPriceCents);
             model.addRow(new Object[] {
-                t.id,
-                t.itemName,
-                t.unit,
-                t.plannedQty,
-                expected,
-                Money.formatNTD(t.lineTotalCents)
+                    t.id, t.itemName, t.unit, t.plannedQty, exp, Money.formatNTD(t.lineTotalCents)
             });
         }
-
-        // Debug: see how many rows we actually loaded
-        System.out.println("[TripWindow] refreshTable: " + items.size() + " item(s) for tripId=" + currentTrip.id);
+        System.out.println("[Trip] refreshTable -> " + items.size() + " rows");
     }
 
-    // === Recompute footer numbers and color ===
+    // recompute subtotal + remaining and color
     private void updateTotals() {
         if (currentTrip == null) {
             subtotalLabel.setText("Subtotal: NT$0.00");
@@ -257,7 +249,6 @@ public class TripWindow extends JFrame {
             remainingLabel.setForeground(Color.BLACK);
             return;
         }
-
         int subtotal = service.computeSubtotalCents(currentTrip.id);
         subtotalLabel.setText("Subtotal: " + Money.formatNTD(subtotal));
 

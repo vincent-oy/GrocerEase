@@ -1,22 +1,21 @@
 package model;
 
-import java.time.Instant;
-import java.time.LocalDate;
-
-/**
- * Represents an item in our home pantry.
- * Example: Milk (unit "bottle", onHandQty 2, minQty 1, expiry 2026-01-10)
+/*
+ * pantry item data (just fields, student style)
+ * i don’t use getters/setters, just public fields
  */
 public class PantryItem {
+    public Integer id;       // auto id from DB
+    public String  name;     // "Eggs"
+    public String  category; // e.g. "Dairy"
+    public int     onHandQty;
+    public String  unit;     // "dozen"
+    public String  expiry;   // stored as TEXT "YYYY-MM-DD" (simple)
+    public int     minQty;   // minimum before low stock
+    public String  updatedAt;// iso string
 
-    public Integer id;          // set after insert
-    public String  name;        // required
-    public String  category;    // e.g., Dairy, Fruit, Snacks
-    public int     onHandQty;   // >= 0
-    public String  unit;        // e.g., pack, bottle, kg
-    public LocalDate expiry;    // null if non-perishable
-    public int     minQty;      // threshold for "low stock" (>= 0)
-    public Instant updatedAt;   // when last changed (ISO-8601)
-
-    public PantryItem() { }
+    @Override
+    public String toString() {
+        return "PantryItem{id=" + id + ", name=" + name + ", qty=" + onHandQty + "}";
+    }
 }
