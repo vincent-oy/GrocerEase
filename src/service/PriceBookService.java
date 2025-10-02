@@ -1,13 +1,17 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Interface.java to edit this template
- */
 package service;
 
+import model.Store;
+import java.util.List;
+import java.util.Optional;
+
 /**
- *
- * @author ruby_
+ * Optional service for keeping a simple "price book" per store.
+ * This helps suggest expected prices when planning trips.
  */
-public interface PriceBookService {
-    
+public interface PriceBookService extends AutoCloseable {
+    List<Store> listStores();
+    Store addStore(String name);
+    Optional<Integer> findLatestPriceCents(int storeId, String itemName);
+    void upsertPrice(int storeId, String itemName, int priceCents);
+    @Override void close();
 }

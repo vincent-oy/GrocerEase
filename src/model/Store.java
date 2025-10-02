@@ -1,13 +1,7 @@
 package model;
 
-/**
- * Represents a store (for the optional Price Book).
- * Example: "Carrefour", "Costco", "Local Market"
- */
+/** Simple store record (for price book and trips). */
 public class Store {
-
-    public Integer id;     // primary key
-    public String name;    // unique store name
-
-    public Store() { }
+    public Integer id;
+    public String  name;
 }

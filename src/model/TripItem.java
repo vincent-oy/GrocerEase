@@ -16,5 +16,5 @@ public class TripItem {
     public Integer expectedPriceCents;   // nullable if we don't know yet
     public int lineTotalCents;           // plannedQty * expectedPriceCents (0 if price unknown)
 
-    public TripItem() { }
+    public TripItem() { }            //???
 }

@@ -1,49 +1,36 @@
 package app;
 
-// Import Swing classes we need to run GUI safely
-import service.SqlitePantryService;
+// Swing imports for GUI
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
-// Import our main window class (the GUI entry point)
+// Our own main window class
 import ui.MainWindow;
 
 /**
- * The App class is the starting point of the program.
- * It contains the "main" method which runs when the program starts.
+ * Entry point of the GrocerEase program.
+ * Sets a nice theme and opens the main menu window.
  */
 public class App {
 
-    /**
-     * Main method.
-     * This is the first method that Java runs when you launch the program.
-     */
     public static void main(String[] args) {
 
-        // Simple log to the console to check that the program has started.
-        // This is useful for debugging to know that the app actually launched.
+        // A quick console log to know the app started.
         System.out.println("GrocerEase application starting...");
 
-        // Try to set the "Nimbus" look and feel (a nicer style for Swing GUIs).
-        // If Nimbus is not available, it will silently fall back to the default look.
+        // Try the "Nimbus" Look & Feel (nicer default).
         try {
             UIManager.setLookAndFeel("javax.swing.plaf.nimbus.NimbusLookAndFeel");
         } catch (Exception ignored) {
-            // If it fails, we don't do anything, just use default.
-            System.out.println("Nimbus look and feel not available, using default.");
+            System.out.println("Nimbus not available, using default Look & Feel.");
         }
 
-        // Use SwingUtilities.invokeLater to make sure that
-        // the GUI (Graphical User Interface) code runs on the
-        // Event Dispatch Thread (EDT). This is important in Java Swing
-        // to avoid bugs or crashes when working with windows and buttons.
+        // All Swing UI must be created on the Event Dispatch Thread (EDT).
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
-                // Create an instance of our main menu window
-                // and make it visible on the screen.
-                MainWindow mainMenu = new MainWindow();
-                mainMenu.setVisible(true);
+                MainWindow main = new MainWindow();
+                main.setVisible(true);
             }
         });
     }

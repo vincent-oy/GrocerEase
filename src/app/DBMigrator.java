@@ -4,23 +4,16 @@ import java.sql.Connection;
 import java.sql.Statement;
 
 /**
- * DbMigrator creates our tables if they don't exist.
- * This is called once when the program starts (services call it).
- *
- * We keep the SQL as plain strings for readability.
+ * DBMigrator creates our database tables if they don't already exist.
+ * Safe to call multiple times. Each service calls migrate() in its constructor.
  */
 public final class DBMigrator {
 
     private DBMigrator() { }
 
-    /**
-     * Run all our "DDL" (Data Definition Language) statements.
-     * If tables already exist, SQLite simply keeps them.
-     */
     public static void migrate() {
 
-        // We put each table's SQL into a separate string.
-        // Using Java text blocks (""" … """) to keep formatting nice.
+        // ----- Pantry items (home inventory) -----
         String pantrySql = """
             CREATE TABLE IF NOT EXISTS pantry_items (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,6 +28,7 @@ public final class DBMigrator {
             CREATE INDEX IF NOT EXISTS idx_pantry_name ON pantry_items(name);
             """;
 
+        // ----- Stores (for optional price book) -----
         String storesSql = """
             CREATE TABLE IF NOT EXISTS stores (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,6 +36,7 @@ public final class DBMigrator {
             );
             """;
 
+        // ----- Price entries (store + item -> last price) -----
         String priceSql = """
             CREATE TABLE IF NOT EXISTS price_entries (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,16 +49,18 @@ public final class DBMigrator {
               ON price_entries(item_name, store_id);
             """;
 
+        // ----- Trips (planned shopping runs) -----
         String tripsSql = """
             CREATE TABLE IF NOT EXISTS trips (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
-              trip_date TEXT NOT NULL,
+              trip_date TEXT NOT NULL,           -- YYYY-MM-DD
               store_id INTEGER REFERENCES stores(id),
               budget_cents INTEGER NOT NULL CHECK(budget_cents >= 0),
               note TEXT
             );
             """;
 
+        // ----- Trip items (lines on a trip) -----
         String tripItemsSql = """
             CREATE TABLE IF NOT EXISTS trip_items (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,19 +74,14 @@ public final class DBMigrator {
             CREATE INDEX IF NOT EXISTS idx_trip_items_trip ON trip_items(trip_id);
             """;
 
-        // Now actually run the SQL against SQLite
+        // Execute DDL
         try (Connection c = Db.open(); Statement st = c.createStatement()) {
-
             st.executeUpdate(pantrySql);
             st.executeUpdate(storesSql);
             st.executeUpdate(priceSql);
             st.executeUpdate(tripsSql);
             st.executeUpdate(tripItemsSql);
-
         } catch (Exception e) {
-
-            // If anything goes wrong, we convert it into a RuntimeException
-            // so the app shows a clear error message.
             throw new RuntimeException("Database migration failed: " + e.getMessage(), e);
         }
     }

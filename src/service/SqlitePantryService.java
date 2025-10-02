@@ -1,7 +1,7 @@
 package service;
 
+import app.DBMigrator;
 import app.Db;
-import app.DbMigrator;
 import model.PantryItem;
 
 import java.sql.Connection;
@@ -14,34 +14,29 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Concrete implementation of PantryService that stores data in SQLite.
- * Each method opens a connection, does its job, and closes the connection.
- * This is not the fastest in the world, but it is simple and easy to understand.
+ * SQLite-backed PantryService.
+ * Each method opens a connection, does its job, and closes it (simple & safe for a small app).
  */
 public class SqlitePantryService implements PantryService {
 
     public SqlitePantryService() {
-        // Make sure tables exist. If already created, nothing bad happens.
-        DbMigrator.migrate();
+        DBMigrator.migrate();   // ensure tables exist
     }
 
-    // Convert a database row (ResultSet) into a PantryItem object
+    // Convert a ResultSet row to a PantryItem object.
     private PantryItem map(ResultSet rs) throws Exception {
-
         PantryItem p = new PantryItem();
-
-        p.id = rs.getInt("id");
-        p.name = rs.getString("name");
-        p.category = rs.getString("category");
+        p.id        = rs.getInt("id");
+        p.name      = rs.getString("name");
+        p.category  = rs.getString("category");
         p.onHandQty = rs.getInt("on_hand_qty");
-        p.unit = rs.getString("unit");
+        p.unit      = rs.getString("unit");
 
         String exp = rs.getString("expiry");
         p.expiry = (exp == null) ? null : LocalDate.parse(exp);
 
-        p.minQty = rs.getInt("min_qty");
+        p.minQty    = rs.getInt("min_qty");
         p.updatedAt = Instant.parse(rs.getString("updated_at"));
-
         return p;
     }
 
@@ -53,9 +48,7 @@ public class SqlitePantryService implements PantryService {
              ResultSet rs = ps.executeQuery()) {
 
             List<PantryItem> out = new ArrayList<>();
-            while (rs.next()) {
-                out.add(map(rs));
-            }
+            while (rs.next()) out.add(map(rs));
             return out;
 
         } catch (Exception e) {
@@ -71,9 +64,7 @@ public class SqlitePantryService implements PantryService {
              ResultSet rs = ps.executeQuery()) {
 
             List<PantryItem> out = new ArrayList<>();
-            while (rs.next()) {
-                out.add(map(rs));
-            }
+            while (rs.next()) out.add(map(rs));
             return out;
 
         } catch (Exception e) {
@@ -83,8 +74,8 @@ public class SqlitePantryService implements PantryService {
 
     @Override
     public List<PantryItem> expiringSoon(int days) {
-        LocalDate limit = LocalDate.now().plusDays(days);
         String sql = "SELECT * FROM pantry_items WHERE expiry IS NOT NULL AND expiry <= ? ORDER BY expiry ASC";
+        LocalDate limit = LocalDate.now().plusDays(days);
 
         try (Connection c = Db.open();
              PreparedStatement ps = c.prepareStatement(sql)) {
@@ -93,9 +84,7 @@ public class SqlitePantryService implements PantryService {
 
             try (ResultSet rs = ps.executeQuery()) {
                 List<PantryItem> out = new ArrayList<>();
-                while (rs.next()) {
-                    out.add(map(rs));
-                }
+                while (rs.next()) out.add(map(rs));
                 return out;
             }
 
@@ -106,7 +95,6 @@ public class SqlitePantryService implements PantryService {
 
     @Override
     public PantryItem add(PantryItem p) {
-
         validate(p);
 
         String sql = "INSERT INTO pantry_items(name, category, on_hand_qty, unit, expiry, min_qty, updated_at) "
@@ -126,11 +114,8 @@ public class SqlitePantryService implements PantryService {
             ps.executeUpdate();
 
             try (ResultSet keys = ps.getGeneratedKeys()) {
-                if (keys.next()) {
-                    p.id = keys.getInt(1);
-                }
+                if (keys.next()) p.id = keys.getInt(1);
             }
-
             return p;
 
         } catch (Exception e) {
@@ -140,14 +125,11 @@ public class SqlitePantryService implements PantryService {
 
     @Override
     public PantryItem update(PantryItem p) {
-
-        if (p.id == null || p.id <= 0) {
-            throw new IllegalArgumentException("Invalid id for update");
-        }
-
+        if (p.id == null || p.id <= 0) throw new IllegalArgumentException("Invalid id");
         validate(p);
 
-        String sql = "UPDATE pantry_items SET name=?, category=?, on_hand_qty=?, unit=?, expiry=?, min_qty=?, updated_at=? "
+        String sql = "UPDATE pantry_items "
+                   + "SET name=?, category=?, on_hand_qty=?, unit=?, expiry=?, min_qty=?, updated_at=? "
                    + "WHERE id=?";
 
         try (Connection c = Db.open();
@@ -162,12 +144,8 @@ public class SqlitePantryService implements PantryService {
             ps.setString(7, Instant.now().toString());
             ps.setInt(8, p.id);
 
-            int changed = ps.executeUpdate();
-
-            if (changed == 0) {
-                throw new IllegalArgumentException("No pantry item with id " + p.id);
-            }
-
+            int n = ps.executeUpdate();
+            if (n == 0) throw new IllegalArgumentException("No pantry item with id " + p.id);
             return p;
 
         } catch (Exception e) {
@@ -182,32 +160,20 @@ public class SqlitePantryService implements PantryService {
              PreparedStatement ps = c.prepareStatement(sql)) {
 
             ps.setInt(1, id);
-            int n = ps.executeUpdate();
-            return n > 0;
+            return ps.executeUpdate() > 0;
 
         } catch (Exception e) {
             throw new RuntimeException("delete failed: " + e.getMessage(), e);
         }
     }
 
-    // Very basic data checks to keep database clean
+    // Basic checks to keep the data clean.
     private void validate(PantryItem p) {
-        if (p == null) {
-            throw new IllegalArgumentException("Item cannot be null");
-        }
-        if (p.name == null || p.name.isBlank()) {
-            throw new IllegalArgumentException("Name is required");
-        }
-        if (p.onHandQty < 0) {
-            throw new IllegalArgumentException("Quantity cannot be negative");
-        }
-        if (p.minQty < 0) {
-            throw new IllegalArgumentException("Min quantity cannot be negative");
-        }
+        if (p == null)                              throw new IllegalArgumentException("Item is null");
+        if (p.name == null || p.name.isBlank())     throw new IllegalArgumentException("Name is required");
+        if (p.onHandQty < 0)                        throw new IllegalArgumentException("Quantity cannot be negative");
+        if (p.minQty < 0)                           throw new IllegalArgumentException("Min quantity cannot be negative");
     }
 
-    @Override
-    public void close() {
-        // Nothing to close (we open/close connections per method).
-    }
+    @Override public void close() { }
 }

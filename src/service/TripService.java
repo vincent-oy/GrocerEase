@@ -6,9 +6,7 @@ import model.TripItem;
 import java.time.LocalDate;
 import java.util.List;
 
-/**
- * TripService describes the operations for planning shopping trips.
- */
+/** Service for planning budgeted shopping trips. */
 public interface TripService extends AutoCloseable {
 
     Trip create(LocalDate date, Integer storeId, int budgetCents, String note);
@@ -25,6 +23,5 @@ public interface TripService extends AutoCloseable {
 
     int computeSubtotalCents(int tripId);
 
-    @Override
-    void close();
+    @Override void close();
 }
