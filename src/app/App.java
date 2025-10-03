@@ -1,35 +1,30 @@
-package app;
+package app; // Define the package namespace for the application entry point
 
-// swing = java gui stuff import
-import javax.swing.SwingUtilities;                         // for running GUI creation on EDT
-import javax.swing.UIManager;                              // for enhanced look & usability
+import javax.swing.SwingUtilities; // Import SwingUtilities so UI operations occur on the Event Dispatch Thread (EDT)
+import javax.swing.UIManager; // Import UIManager to control the Swing look and feel at runtime
 
-import ui.MainWindow;   //MainWindow.java (my window)
+import ui.MainWindow; // Import the main application window that hosts the primary UI
 
-//Entry point, GUI starts here
-public class App {
-    
-    public static void main(String[] args) {
+public class App { // Declare the App class that contains the main method
 
-        // so i can see it actually launched
-        System.out.println("== GrocerEase starting ==");
+    public static void main(String[] args) { // JVM entry point that bootstraps the GrocerEase UI
 
-        // try nicer theme; if it fails stick to the older one
-        try {
-            UIManager.setLookAndFeel("javax.swing.plaf.nimbus.NimbusLookAndFeel");
-        } catch (Exception e) {
-            System.out.println("nimbus failed -> using default");
+        System.out.println("== GrocerEase starting =="); // Print a banner to confirm that the application has started
+
+        try { // Attempt to configure the Swing look and feel to Nimbus for a modern appearance
+            UIManager.setLookAndFeel("javax.swing.plaf.nimbus.NimbusLookAndFeel"); // Request Nimbus by its fully qualified class name
+        } catch (Exception e) { // Handle any failures when applying the Nimbus look and feel
+            System.out.println("nimbus failed -> using default"); // Log that the default Swing theme will be used as a fallback
         }
 
-        // swing rule: make windows on the event dispatch thread (EDT). The main program therad doens't wait for thsi task to be done --> It continues to the next line of code right away
-        SwingUtilities.invokeLater(new Runnable() {
-            @Override                                      // Catch error if method signature incorrect
-            public void run() {
-                MainWindow w = new MainWindow();           // open the main menu
+        SwingUtilities.invokeLater(new Runnable() { // Schedule UI construction on the EDT as recommended by Swing
+            @Override // Annotate that we are overriding the run method from Runnable
+            public void run() { // Provide the code that will execute on the EDT to create the UI
+                MainWindow w = new MainWindow(); // Instantiate the main application window that provides navigation
 
-                w.setVisible(true);                        // show it
-                System.out.println("main window visible"); // debug print
-            }
-        });
-    }
-}
+                w.setVisible(true); // Display the window so the user can interact with the application
+                System.out.println("main window visible"); // Log that the main window has been made visible
+            } // End of the run method implementation
+        }); // Submit the Runnable to be executed asynchronously on the EDT
+    } // End of the main method
+} // End of the App class definition
