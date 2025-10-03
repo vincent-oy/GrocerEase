@@ -1,16 +1,15 @@
 package model;
 
 /*
- * pantry item data (just fields, student style)
- * i don’t use getters/setters, just public fields
+    Pantry Item Data, just fields
  */
 public class PantryItem {
-    public Integer id;       // auto id from DB
-    public String  name;     // "Eggs"
-    public String  category; // e.g. "Dairy"
-    public int     onHandQty;
+    public Integer id;       // auto id from SQlite DB
+    public String  name;     // ex. "Eggs"
+    public String  category; // ex. "Dairy"
+    public int     onHandQty;// ex. "5"
     public String  unit;     // "dozen"
-    public String  expiry;   // stored as TEXT "YYYY-MM-DD" (simple)
+    public String  expiry;   // TEXT store format: "YYYY-MM-DD"
     public int     minQty;   // minimum before low stock
     public String  updatedAt;// iso string
 

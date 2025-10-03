@@ -1,38 +1,34 @@
 package app;
 
-// swing = java's gui stuff
-import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
+// swing = java gui stuff import
+import javax.swing.SwingUtilities;                         // for running GUI creation on EDT
+import javax.swing.UIManager;                              // for enhanced look & usability
 
-// my window (main menu)
-import ui.MainWindow;
+import ui.MainWindow;   //MainWindow.java (my window)
 
-/*
- * entry point. i just start the GUI here.
- * kept this simple on purpose.
- */
+//Entry point, GUI starts here
 public class App {
-
+    
     public static void main(String[] args) {
 
-        // just so i can see it actually launched
+        // so i can see it actually launched
         System.out.println("== GrocerEase starting ==");
 
-        // try nicer theme. if it fails, whatever.
+        // try nicer theme; if it fails stick to the older one
         try {
             UIManager.setLookAndFeel("javax.swing.plaf.nimbus.NimbusLookAndFeel");
         } catch (Exception e) {
             System.out.println("nimbus failed -> using default");
         }
 
-        // swing rule: make windows on the event dispatch thread
+        // swing rule: make windows on the event dispatch thread (EDT). The main program therad doens't wait for thsi task to be done --> It continues to the next line of code right away
         SwingUtilities.invokeLater(new Runnable() {
-            @Override
+            @Override                                      // Catch error if method signature incorrect
             public void run() {
-                // open the main menu
-                MainWindow w = new MainWindow();
-                w.setVisible(true);
-                System.out.println("main window visible"); // debug
+                MainWindow w = new MainWindow();           // open the main menu
+
+                w.setVisible(true);                        // show it
+                System.out.println("main window visible"); // debug print
             }
         });
     }

@@ -9,9 +9,10 @@ import java.sql.Statement;
 public class DBMigrator {
 
     public static void migrate() {
-        try (Connection c = Db.open(); Statement st = c.createStatement()) {
+        try (Connection c = Db.open(); Statement st = c.createStatement()) {    //run this to make sure all tables exist
 
-            // pantry table
+
+            // pantry table --> used by SQlitePantryService & PantryWindow
             String pantrySql = "CREATE TABLE IF NOT EXISTS pantry_items (" +
                     "id INTEGER PRIMARY KEY AUTOINCREMENT," +
                     "name TEXT NOT NULL," +
@@ -24,24 +25,7 @@ public class DBMigrator {
                     ")";
             st.executeUpdate(pantrySql);
 
-            // store table
-            String storesSql = "CREATE TABLE IF NOT EXISTS stores (" +
-                    "id INTEGER PRIMARY KEY AUTOINCREMENT," +
-                    "name TEXT UNIQUE NOT NULL" +
-                    ")";
-            st.executeUpdate(storesSql);
-
-            // price entries
-            String priceSql = "CREATE TABLE IF NOT EXISTS price_entries (" +
-                    "id INTEGER PRIMARY KEY AUTOINCREMENT," +
-                    "store_id INTEGER NOT NULL," +
-                    "item_name TEXT NOT NULL," +
-                    "price_cents INTEGER NOT NULL," +
-                    "updated_at TEXT" +
-                    ")";
-            st.executeUpdate(priceSql);
-
-            // trips
+            // trips --> Used by SQliteTripService & TripWindow
             String tripsSql = "CREATE TABLE IF NOT EXISTS trips (" +
                     "id INTEGER PRIMARY KEY AUTOINCREMENT," +
                     "trip_date TEXT NOT NULL," +
@@ -51,7 +35,7 @@ public class DBMigrator {
                     ")";
             st.executeUpdate(tripsSql);
 
-            // trip items
+            // trip items --> Used by SQliteTripService & TripWindow
             String tripItemsSql = "CREATE TABLE IF NOT EXISTS trip_items (" +
                     "id INTEGER PRIMARY KEY AUTOINCREMENT," +
                     "trip_id INTEGER NOT NULL," +
