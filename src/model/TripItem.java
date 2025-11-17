@@ -1,8 +1,7 @@
 package model;
 
 /*
- * trip item data (student style)
- * belongs to a trip (tripId)
+    Belongs to a trip in tripid
  */
 public class TripItem {
     public Integer id;

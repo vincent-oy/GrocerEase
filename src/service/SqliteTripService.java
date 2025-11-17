@@ -9,12 +9,6 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-/*
- * sqlite trip "service" (student style):
- * - constructor runs DBMigrator
- * - methods are direct + a bit repetitive (typical coursework)
- * - i store the date as TEXT (YYYY-MM-DD), not a LocalDate in the model
- */
 public class SqliteTripService {
 
     public SqliteTripService() {
@@ -123,7 +117,7 @@ public class SqliteTripService {
         }
     }
 
-    // change quantity and recompute line total
+    // change quantity and recalculate the line total
     public void updateItemQty(int tripItemId, int newQty) {
         if (newQty <= 0) throw new IllegalArgumentException("qty must be > 0");
 
@@ -178,7 +172,7 @@ public class SqliteTripService {
         }
     }
 
-    // small helper to keep DB clean
+    // keep Db clean, dealing will null
     private String emptyToNull(String s) {
         if (s == null) return null;
         String t = s.trim();

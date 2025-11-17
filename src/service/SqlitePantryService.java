@@ -9,12 +9,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-/*
- * pantry sqlite "service" (student style):
- * - constructor runs DBMigrator once
- * - methods are simple and a bit repetitive on purpose (typical coursework style)
- * - expiry kept as TEXT; updated_at is Instant ISO string
- */
 public class SqlitePantryService {
 
     public SqlitePantryService() {
@@ -77,6 +71,50 @@ public class SqlitePantryService {
             e.printStackTrace();
             throw new RuntimeException("low stock query failed");
         }
+        return out;
+    }
+
+    // items where the *total* on-hand qty for an item (across rows)
+// is below the minimum, grouped by name/category/unit
+    public List<PantryItem> lowStockGrouped() {
+        String sql
+                = "SELECT "
+                + "  name, "
+                + "  category, "
+                + "  unit, "
+                + "  SUM(on_hand_qty) AS total_on_hand, "
+                + "  MAX(min_qty)     AS min_qty, "
+                + // or SUM(min_qty)
+                "  MIN(expiry)      AS next_expiry, "
+                + "  MAX(updated_at)  AS last_updated "
+                + "FROM pantry_items "
+                + "GROUP BY name, category, unit "
+                + "HAVING SUM(on_hand_qty) <= MAX(min_qty) "
+                + // keep consistent
+                "ORDER BY name";
+
+        List<PantryItem> out = new ArrayList<>();
+
+        try (Connection c = Db.open(); PreparedStatement ps = c.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                PantryItem p = new PantryItem();
+                p.id = null; // aggregated row, no single id
+                p.name = rs.getString("name");
+                p.category = rs.getString("category");
+                p.unit = rs.getString("unit");
+                p.onHandQty = rs.getInt("total_on_hand");      // aggregated qty
+                p.minQty = rs.getInt("min_qty");            // chosen rule
+                p.expiry = rs.getString("next_expiry");     // earliest expiry
+                p.updatedAt = rs.getString("last_updated");    // most recent change
+                out.add(p);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("grouped low stock query failed");
+        }
+
         return out;
     }
 
@@ -195,7 +233,7 @@ public class SqlitePantryService {
         }
     }
 
-    // small helper: turn "" into null so db stays cleaner
+    // small helper: turn "" into null --> Db stays cleaner
     private String emptyToNull(String s) {
         if (s == null) return null;
         String t = s.trim();

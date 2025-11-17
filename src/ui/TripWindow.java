@@ -11,11 +11,10 @@ import java.awt.*;
 import java.util.List;
 
 /*
- * plan a trip window (student style)
- * - create a trip (date + budget + note)
- * - add items (qty + expected price)
- * - live subtotal + remaining vs budget
- * notes: i keep most logic inline and use direct SqliteTripService (no interface)
+    - create a trip (date + budget + note)
+    - add items (qty + expected price)
+    - live subtotal + remaining vs budget
+    keep most logic inline and use direct SqliteTripService (no interface)
  */
 public class TripWindow extends JFrame {
 
@@ -52,7 +51,7 @@ public class TripWindow extends JFrame {
         // selection: single row (easier)
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
-        // ===== header row =====
+        // header row 
         JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 6));
         dateField.setText(java.time.LocalDate.now().toString()); // default today
         header.add(new JLabel("Date:"));          header.add(dateField);
@@ -61,7 +60,7 @@ public class TripWindow extends JFrame {
         JButton btnCreate = new JButton("Create Trip");
         header.add(btnCreate);
 
-        // ===== toolbar row =====
+        //  toolbar row 
         JPanel bar = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 6));
         JButton btnAdd = new JButton("Add Item");
         JButton btnQty = new JButton("Change Qty");
@@ -241,7 +240,7 @@ public class TripWindow extends JFrame {
         System.out.println("[Trip] refreshTable -> " + items.size() + " rows");
     }
 
-    // recompute subtotal + remaining and color
+    // recalculate subtotal + remaining and color
     private void updateTotals() {
         if (currentTrip == null) {
             subtotalLabel.setText("Subtotal: NT$0.00");

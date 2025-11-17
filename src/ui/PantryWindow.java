@@ -9,11 +9,9 @@ import java.awt.*;
 import java.util.List;
 
 /*
- * pantry window: table + buttons for add/edit/delete + 2 quick filters
- * student style:
- * - window creates its own SqlitePantryService (no interface layer)
- * - expiry handled as plain text "YYYY-MM-DD" (less parsing headaches)
- * - lots of printlns so i can see what's happening
+    pantry window: table + buttons for add/edit/delete + 2 quick filters
+    - window creates its own SqlitePantryService
+    - expiry changed to plain text "YYYY-MM-DD" (less parsing)
  */
 public class PantryWindow extends JFrame {
 
@@ -43,6 +41,7 @@ public class PantryWindow extends JFrame {
         JButton btnEdit = new JButton("Edit");
         JButton btnDel  = new JButton("Delete");
         JButton btnLow  = new JButton("Low Stock");
+        JButton btnLowGrouped = new JButton("Low Stock by Group");
         JButton btnSoon = new JButton("Expiring ≤ 3 days");
         JButton btnAll  = new JButton("Show All");
 
@@ -52,6 +51,7 @@ public class PantryWindow extends JFrame {
         top.add(btnEdit);
         top.add(btnDel);
         top.add(btnLow);
+        top.add(btnLowGrouped);
         top.add(btnSoon);
         top.add(btnAll);
 
@@ -64,6 +64,7 @@ public class PantryWindow extends JFrame {
         btnEdit.addActionListener(e -> onEdit());
         btnDel.addActionListener(e -> onDelete());
         btnLow.addActionListener(e -> load(service.lowStock()));
+        btnLowGrouped.addActionListener(e -> load(service.lowStockGrouped()));
         btnSoon.addActionListener(e -> load(service.expiringSoon(3)));
         btnAll.addActionListener(e -> load(service.listAll()));
 
